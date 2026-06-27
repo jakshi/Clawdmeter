@@ -18,6 +18,11 @@ struct BoardCaps {
     bool    has_rotation;    // IMU-driven CPU rotation in the flush callback
     bool    has_battery;     // AXP2101 battery measurement is meaningful
     bool    has_imu;         // QMI8658 (or compatible) is populated
+
+    // PWR press toggles splash <-> usage instead of cycling animations /
+    // brightness. For boards whose touch can't switch screens (so PWR is the
+    // only on-device way to reach the usage view). Defaults false.
+    bool    pwr_toggles_screen;
 };
 
 const BoardCaps& board_caps(void);

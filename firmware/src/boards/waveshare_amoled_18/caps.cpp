@@ -9,6 +9,8 @@ static const BoardCaps caps = {
     .has_rotation = false,
     .has_battery = true,
     .has_imu = true,
+    // CST816 (V2 panel) touch can't switch screens yet, so PWR toggles them.
+    .pwr_toggles_screen = true,
 };
 
 const BoardCaps& board_caps(void) { return caps; }

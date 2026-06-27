@@ -341,10 +341,17 @@ void loop() {
 
         if (power_hal_pwr_pressed()) {
             if (!idle_consume_wake_press()) {
-                // On splash: cycle animations. On the usage view: cycle
-                // screen brightness (single non-splash view, no more screens).
-                if (ui_get_current_screen() == SCREEN_SPLASH) splash_next();
-                else                                          brightness_cycle();
+                if (board_caps().pwr_toggles_screen) {
+                    // Board with no usable touch nav (the only other way off
+                    // the splash): PWR toggles splash <-> usage so the usage
+                    // screen is reachable. Splash animations still auto-rotate.
+                    ui_toggle_splash();
+                } else {
+                    // On splash: cycle animations. On the usage view: cycle
+                    // screen brightness (single non-splash view).
+                    if (ui_get_current_screen() == SCREEN_SPLASH) splash_next();
+                    else                                          brightness_cycle();
+                }
             }
         }
 
