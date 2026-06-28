@@ -282,6 +282,13 @@ static void pair_tick(void) {
     } else if (pair_state == PAIR_ARMED && held >= PAIR_DISARM_AFTER_LONG_MS) {
         pair_state = PAIR_IDLE;  // power-off territory; don't pair
         Serial.println("Pair: disarmed (holding toward power-off)");
+        // Boards without a hardware PWR-key shutdown power off in software here
+        // (~6s hold). Boards with the AXP key wired (2.16) let the PMU cut
+        // power at 8s instead. Fires while still held — no release needed.
+        if (board_caps().pwr_software_shutdown) {
+            Serial.println("PWR held — software power-off");
+            power_hal_shutdown();
+        }
     }
 }
 
@@ -300,10 +307,11 @@ void loop() {
     if (!idle_is_asleep()) display_hal_tick();
 
     // ---- Physical buttons ----
-    //   PRIMARY   → HID Space  (Claude Code voice-mode PTT)
+    //   PRIMARY   → HID Space (voice-mode PTT), or Shift+Tab where
+    //               caps.primary_sends_shift_tab (Claude Code mode cycle)
     //   SECONDARY → HID Shift+Tab  (mode toggle; only if the board has one)
-    //   PWR       → on splash: cycle animations; on usage: cycle brightness;
-    //               hold ~3s + release: pairing mode
+    //   PWR       → toggle splash/usage, or cycle animations+brightness;
+    //               hold ~3s + release: pairing; long hold: power-off
     // First press from sleep is consumed as a wake-only event by
     // idle_consume_wake_press(); the normal action fires from the second
     // press. Activity bookkeeping happens inside idle_consume_wake_press
@@ -314,8 +322,9 @@ void loop() {
         bool primary_now = input_hal_is_held(INPUT_BTN_PRIMARY);
         if (primary_now != primary_was) {
             if (primary_now) {
-                if (idle_consume_wake_press()) primary_wake_swallowed = true;
-                else                            ble_keyboard_press(0x2C, 0);  // HID Space, no mods
+                if (idle_consume_wake_press())                  primary_wake_swallowed = true;
+                else if (board_caps().primary_sends_shift_tab)  ble_keyboard_press(0x2B, 0x02);  // HID Tab + LEFT_SHIFT
+                else                                            ble_keyboard_press(0x2C, 0);     // HID Space, no mods
             } else {
                 if (primary_wake_swallowed) primary_wake_swallowed = false;
                 else                        ble_keyboard_release();

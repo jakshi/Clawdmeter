@@ -25,3 +25,8 @@ bool power_hal_pwr_long_pressed(void);
 // Edge-triggered: true once on the PWR release edge, then clears. Completes
 // or cancels the hold-to-pair gesture.
 bool power_hal_pwr_released(void);
+
+// Software power-off via the PMU (e.g. AXP2101 shutdown). Called on a long PWR
+// hold for boards whose PWR button isn't wired to the PMU power key (so the
+// PMU's own long-press shutdown never fires). No-op where there's no PMU.
+void power_hal_shutdown(void);

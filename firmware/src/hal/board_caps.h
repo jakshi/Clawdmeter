@@ -23,6 +23,16 @@ struct BoardCaps {
     // brightness. For boards whose touch can't switch screens (so PWR is the
     // only on-device way to reach the usage view). Defaults false.
     bool    pwr_toggles_screen;
+
+    // Primary (BOOT) button sends Shift+Tab (Claude Code mode cycle / auto-
+    // accept) instead of Space (voice PTT). For boards where the single front
+    // button is better spent on mode toggling than push-to-talk.
+    bool    primary_sends_shift_tab;
+
+    // Long PWR hold triggers power_hal_shutdown() (AXP soft power-off). For
+    // boards whose PWR button isn't on the PMU power key, so the PMU's own
+    // long-press hardware shutdown never fires.
+    bool    pwr_software_shutdown;
 };
 
 const BoardCaps& board_caps(void);

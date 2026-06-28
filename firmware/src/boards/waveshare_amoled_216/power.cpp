@@ -91,3 +91,7 @@ bool power_hal_pwr_released(void) {
     if (pwr_released_flag) { pwr_released_flag = false; return true; }
     return false;
 }
+
+void power_hal_shutdown(void) {
+    pmu.shutdown();
+}
