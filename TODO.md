@@ -17,19 +17,18 @@ tap (`jakshi/homebrew-tap`) so it's `brew install jakshi/tap/clawdmeter` +
   (or have the script just shell out to brew).
 - Linux/Windows installers stay as-is.
 
-## Battery: show percentage instead of the icon
+## Rewrite the daemon/server in Go
 
-Replace the 5-state battery icon (`[|||]`) with a numeric **NN%** readout.
+Current host daemon is a Bash script (`daemon/claude-usage-daemon.sh`) plus a
+Python BLE bridge. Rewrite as a single static Go binary.
 
-- **Where:** `ui_update_battery(pct, charging)` in `ui.cpp` currently swaps the
-  `battery_img` (RGB565A8 icons from `icons.h`). Change it to drive an
-  `lv_label` showing the percent instead (or icon + "%").
-- **Data's already there:** `power_hal_battery_pct()` returns 0..100 (or -1 when
-  `!BoardCaps.has_battery` — hide the label in that case).
-- Pick a small Styrene/Mono font for the slot; show a charging glyph or "⚡"
-  when `charging`.
-- Optional: keep it behind a flag if you want the icon on some boards and the
-  number on others.
+- Replace bash + python with one cross-platform Go program (BLE via `tinygo-org/bluetooth`
+  or similar; HTTP via stdlib).
+- Keep behavior: read OAuth token (macOS Keychain `Claude Code-credentials` /
+  Linux file), poll Anthropic usage API, push JSON over BLE GATT
+  (`4c41555a-...0001` RX `...0002`), honor the firmware REQ-refresh notify on `...0004`.
+- Single binary simplifies install (no venv, no dbus-monitor pipe). Revisit the
+  Homebrew-formula item — Go binary is `brew` bottle-friendly.
 
 ## Touch (CST816 / V2 panel)
 

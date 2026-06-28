@@ -128,9 +128,23 @@ static lv_obj_t* lbl_spending_status = nullptr;   // "Under pace" / "On pace" / 
 static lv_obj_t* lbl_anim;      // status line: connection state + whimsical idle
 
 // ---- Battery indicator (shared, on top) ----
+// BATTERY_SHOW_PERCENT: 1 = numeric NN% readout, 0 = classic 5-state [|||] icon.
+// Default is the percentage; a board env opts back to the icon with
+// -D BATTERY_SHOW_PERCENT=0 in its platformio.ini build_flags.
+#ifndef BATTERY_SHOW_PERCENT
+#define BATTERY_SHOW_PERCENT 1
+#endif
+#if BATTERY_SHOW_PERCENT
+static lv_obj_t* battery_box;            // wrapper holding the shell + nub
+static lv_obj_t* battery_shell;          // rounded-rect battery outline
+static lv_obj_t* battery_nub;            // terminal nub on the right
+static lv_obj_t* battery_lbl;            // NN% text inside the shell
+static bool      s_batt_present = false; // false when board has no battery → hidden
+#else
 static lv_obj_t* battery_img;
+static lv_image_dsc_t battery_dscs[5];   // empty, low, medium, full, charging
+#endif
 static lv_obj_t* logo_img;
-static lv_image_dsc_t battery_dscs[5];  // empty, low, medium, full, charging
 
 // ---- Live-data freshness → which usage sub-view to show ----
 // usage panels when data is flowing, an idle "Zzz" screen when the host is
@@ -279,6 +293,7 @@ static lv_obj_t* make_pill(lv_obj_t* parent, const char* text) {
     return lbl;
 }
 
+#if !BATTERY_SHOW_PERCENT
 static void init_battery_icons(void) {
     init_icon_dsc_rgb565a8(&battery_dscs[0], ICON_BATTERY_W, ICON_BATTERY_H, icon_battery_data);
     init_icon_dsc_rgb565a8(&battery_dscs[1], ICON_BATTERY_LOW_W, ICON_BATTERY_LOW_H, icon_battery_low_data);
@@ -286,6 +301,7 @@ static void init_battery_icons(void) {
     init_icon_dsc_rgb565a8(&battery_dscs[3], ICON_BATTERY_FULL_W, ICON_BATTERY_FULL_H, icon_battery_full_data);
     init_icon_dsc_rgb565a8(&battery_dscs[4], ICON_BATTERY_CHARGING_W, ICON_BATTERY_CHARGING_H, icon_battery_charging_data);
 }
+#endif
 
 // ======== Usage Screen ========
 
@@ -448,7 +464,9 @@ void ui_init(void) {
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
 
     init_icon_dsc_rgb565a8(&logo_dsc, LOGO_WIDTH, LOGO_HEIGHT, logo_data);
+#if !BATTERY_SHOW_PERCENT
     init_battery_icons();
+#endif
 
     init_usage_screen(scr);
     splash_init(scr);
@@ -461,9 +479,44 @@ void ui_init(void) {
     lv_image_set_src(logo_img, &logo_dsc);
     lv_obj_set_pos(logo_img, L.margin, L.title_y - 10);
 
+#if BATTERY_SHOW_PERCENT
+    // Battery "shell": rounded-rect outline + a terminal nub on the right with
+    // the NN% reading centered inside. Fixed-size box so the outline never
+    // jumps between "9%" and "100%"; right edge pinned to the margin. Drawn in
+    // the muted UI palette, recolored green while charging.
+    const int box_w = 56, box_h = 26, nub_w = 4, nub_h = 10;
+    battery_box = lv_obj_create(scr);
+    lv_obj_remove_style_all(battery_box);
+    lv_obj_set_size(battery_box, box_w, box_h);
+    lv_obj_set_pos(battery_box, L.scr_w - L.margin - box_w, L.title_y + 6);
+
+    battery_shell = lv_obj_create(battery_box);
+    lv_obj_remove_style_all(battery_shell);
+    lv_obj_set_size(battery_shell, box_w - nub_w - 1, box_h);
+    lv_obj_align(battery_shell, LV_ALIGN_LEFT_MID, 0, 0);
+    lv_obj_set_style_radius(battery_shell, 4, 0);
+    lv_obj_set_style_border_width(battery_shell, 2, 0);
+    lv_obj_set_style_border_color(battery_shell, COL_ACCENT, 0);
+    lv_obj_set_style_bg_opa(battery_shell, LV_OPA_TRANSP, 0);
+
+    battery_nub = lv_obj_create(battery_box);
+    lv_obj_remove_style_all(battery_nub);
+    lv_obj_set_size(battery_nub, nub_w, nub_h);
+    lv_obj_align(battery_nub, LV_ALIGN_RIGHT_MID, 0, 0);
+    lv_obj_set_style_radius(battery_nub, 1, 0);
+    lv_obj_set_style_bg_color(battery_nub, COL_ACCENT, 0);
+    lv_obj_set_style_bg_opa(battery_nub, LV_OPA_COVER, 0);
+
+    battery_lbl = lv_label_create(battery_shell);
+    lv_obj_set_style_text_font(battery_lbl, &font_styrene_14, 0);
+    lv_obj_set_style_text_color(battery_lbl, COL_ACCENT, 0);
+    lv_obj_center(battery_lbl);
+    lv_label_set_text(battery_lbl, "");
+#else
     battery_img = lv_image_create(scr);
     lv_image_set_src(battery_img, &battery_dscs[0]);
     lv_obj_set_pos(battery_img, L.scr_w - 48 - L.margin, L.title_y);
+#endif
 
 }
 
@@ -633,9 +686,16 @@ void ui_tick_anim(void) {
 
 static screen_t prev_non_splash_screen = SCREEN_USAGE;
 static void apply_battery_visibility(void) {
-    if (!battery_img) return;
-    if (current_screen == SCREEN_SPLASH) lv_obj_add_flag(battery_img, LV_OBJ_FLAG_HIDDEN);
-    else                                  lv_obj_clear_flag(battery_img, LV_OBJ_FLAG_HIDDEN);
+#if BATTERY_SHOW_PERCENT
+    lv_obj_t* w = battery_box;
+    bool hide = (current_screen == SCREEN_SPLASH) || !s_batt_present;
+#else
+    lv_obj_t* w = battery_img;
+    bool hide = (current_screen == SCREEN_SPLASH);
+#endif
+    if (!w) return;
+    if (hide) lv_obj_add_flag(w, LV_OBJ_FLAG_HIDDEN);
+    else      lv_obj_clear_flag(w, LV_OBJ_FLAG_HIDDEN);
 }
 
 static void global_click_cb(lv_event_t* e) {
@@ -684,20 +744,29 @@ void ui_update_ble_status(ble_state_t state, const char* name, const char* mac) 
 }
 
 void ui_update_battery(int percent, bool charging) {
-    int idx;
-    if (charging) {
-        idx = 4;
-    } else if (percent < 0) {
-        idx = 0;
-    } else if (percent <= 10) {
-        idx = 0;
-    } else if (percent <= 35) {
-        idx = 1;
-    } else if (percent <= 75) {
-        idx = 2;
-    } else {
-        idx = 3;
+#if BATTERY_SHOW_PERCENT
+    // power_hal_battery_pct() returns -1 when the board has no battery cap.
+    s_batt_present = (percent >= 0) || charging;
+    if (s_batt_present) {
+        char buf[8];
+        snprintf(buf, sizeof(buf), "%d%%", percent < 0 ? 0 : percent);
+        lv_label_set_text(battery_lbl, buf);
+        // No charging glyph in the bitmap fonts → signal it by greening the
+        // whole readout (number + outline + nub) instead of a "⚡".
+        lv_color_t num    = charging ? COL_GREEN : COL_ACCENT;
+        lv_color_t chrome = charging ? COL_GREEN : COL_ACCENT;
+        lv_obj_set_style_text_color(battery_lbl, num, 0);
+        lv_obj_set_style_border_color(battery_shell, chrome, 0);
+        lv_obj_set_style_bg_color(battery_nub, chrome, 0);
     }
+#else
+    int idx;
+    if (charging)           idx = 4;
+    else if (percent <= 10) idx = 0;   // also covers percent < 0 (no battery)
+    else if (percent <= 35) idx = 1;
+    else if (percent <= 75) idx = 2;
+    else                    idx = 3;
     lv_image_set_src(battery_img, &battery_dscs[idx]);
+#endif
     apply_battery_visibility();
 }

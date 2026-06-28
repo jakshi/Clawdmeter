@@ -5,6 +5,12 @@ Changes in this fork (`jakshi/Clawdmeter`). Upstream: `HermannBjorgvin/Clawdmete
 ## 2026-06-28
 
 ### Added
+- **Battery: numeric NN% readout** replaces the 5-state `[|||]` icon. Drawn as a
+  battery shell (rounded-rect outline + terminal nub) with the percentage
+  centered inside, in the mascot terra-cotta (`COL_ACCENT`); turns green while
+  charging. Hidden when the board reports no battery (`pct < 0`). New
+  compile-time flag `BATTERY_SHOW_PERCENT` (default `1`); a board opts back to
+  the old icon with `-D BATTERY_SHOW_PERCENT=0` in its `build_flags`.
 - **AMOLED-1.8: BOOT button sends Shift+Tab** (Claude Code mode cycle /
   auto-accept) instead of Space. Gated by the new
   `BoardCaps.primary_sends_shift_tab`; other boards keep Space.
