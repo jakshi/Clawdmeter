@@ -49,12 +49,25 @@ choice came from the now-corrected assumption "PWR isn't on the AXP power key."
   `getIrqStatus(); isPekeyShort/Long/PositiveIrq(); clearIrqStatus();`. CPU never
   sleeps here, so polling the PEK is fine.
 - **De-risk before cutover:** add the PEK read *alongside* the EXIO4 path on our
-  unit, log which fires for short + long; confirm both are reliable. Only then
-  remove the EXIO4 read + the debounce/grace workaround. (Both units are V2:
-  CO5300 + CST816.)
-- **Related (separate):** we never light-sleep (idle just dims to brightness 0;
-  ESP+BLE run 24/7 → cell drains in hours). The peer light-sleeps + BOOT-wakes —
-  worth adopting for battery life. See `.notes/doc/findings.md` (idle-power).
+  unit and log which fires. A peer on the same V2 confirms **SHORT** PEK is
+  rock-solid; **LONG + POSITIVE are unverified** (he doesn't use them) — we need
+  LONG/POSITIVE for the pairing gesture, so verify them ourselves. **Keep
+  `pmu.shutdown()` for power-off** — leaning on the AXP hardware long-press off
+  re-enables VBUS-PWRON → the device would repower on USB (the VBUS-repower
+  difference is off-method, not unit). Only then drop the EXIO4 read +
+  debounce/grace workaround.
+## AMOLED-1.8: real light-sleep on idle (battery life)
+
+We never sleep — idle just dims to brightness 0; the ESP32-S3 + BLE run 24/7, so
+the cell drains in hours. Peer's pattern
+(https://gitlab.com/paulto/esp32-s3-amoled-word-clock): `esp_light_sleep_start()`
+on battery + screen off, **only GPIO0 (BOOT) as wake source**, no timer;
+battery-gated (VBUS present ⇒ stay awake, so USB stays responsive/flashable).
+
+- **Blocker for us: BLE.** Can't just halt the CPU or the daemon link drops —
+  needs NimBLE modem-sleep / the controller's own light-sleep hooks (peer runs no
+  radio, so his loop isn't BLE-aware). The **BOOT-ISR-detach-across-sleep** trick
+  (wake press = wake-only) transfers directly. See `.notes/doc/peer-exchange.md`.
 
 ## Touch (CST816 / V2 panel)
 

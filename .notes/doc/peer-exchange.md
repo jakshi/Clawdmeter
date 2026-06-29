@@ -70,19 +70,49 @@ Our review (from having just debugged the same button):
      `i2c_master` bus with `scl_wait_us>0`? SensorLib? DriveBus?), that solves our
      dead-touch.
 
+## ④ Paul → Us — 2026-06-29 (answers)
+
+- **PEK:** wires only the **SHORT** PEK IRQ (INTEN2 bit3) for the toggle — rock
+  solid. Does **not** read LONG; leans on the AXP **hardware** long-press
+  power-off (~6 s default), so **can't vouch for the LONG IRQ firing**. Recipe
+  beyond init-drain: enable INTEN2 bit3, per-read write-1-clear, off-time default.
+- **Touch:** not done yet — only an I²C scan + chip-ID (**CST820, ID 0xB7** — note:
+  different chip than our CST816 @ 0x15), no sustained `Wire` reads, so he hasn't
+  hit/cleared the clock-stretch wall. Flags: he's on **esp32 core 3.3.5** (we're
+  3.3.8) so the `scl_wait_us=0` hardcode may differ; fix is likely our dedicated
+  IDF `i2c_master` bus with `scl_wait_us>0` (SensorLib `TouchDrvCSTXXX` uses its
+  own path, might dodge it). Will report when he brings up touch-wake.
+- **Light-sleep:** repo https://gitlab.com/paulto/esp32-s3-amoled-word-clock — on
+  battery + screen off, `esp_light_sleep_start()` with only GPIO0 (BOOT) as wake
+  source, no timer; battery-gated (VBUS present ⇒ stay awake, so USB stays
+  flashable). **Caveat: no radio — not NimBLE-aware;** with BLE you can't just
+  halt or the link drops (need modem-sleep / controller hooks). The
+  BOOT-ISR-detach-across-sleep trick transfers directly.
+- **VBUS-repower:** it's the **off-method, not the unit.** Software `pmu.shutdown()`
+  vs his hardware PWR long-press leave different power-on-source configs — the
+  hardware off leaves VBUS-PWRON enabled (default) so a VBUS edge repowers his;
+  our software path doesn't.
+
 ---
 
 ## Leads / action items out of this
 
 - **PWR → AXP PEK IRQ** on the 1.8 (replace EXIO4 raw read; drop debounce/grace
-  workaround). Reuse `boards/waveshare_amoled_216/power.cpp`. → see `TODO.md`.
-- **CST816 touch** — ask if Paul cleared the `scl_wait_us` / `ESP_ERR_INVALID_STATE`
-  wall on the same V2. → would close `.notes/touch-screen-not-working.md`.
-- **Real light-sleep on idle** — we never sleep; cell drains in hours. Paul
-  light-sleeps + BOOT-wakes; worth adopting.
+  workaround). Reuse `boards/waveshare_amoled_216/power.cpp`. **SHORT PEK is
+  peer-confirmed reliable on the same V2; LONG + POSITIVE are unverified (Paul
+  doesn't use them) — we must verify them ourselves** for the pairing gesture.
+  **Keep `pmu.shutdown()` for power-off** (preserves "stays off on USB"); the AXP
+  hardware long-press off would re-enable VBUS-PWRON → repower on USB. → `TODO.md`.
+- **CST816 touch** — still ours to fix; Paul hasn't cleared the wall. Direction
+  confirmed: dedicated IDF `i2c_master` bus, `scl_wait_us>0`. Watch the core
+  version (his 3.3.5 vs our 3.3.8) and chip variance (his **CST820**, ours
+  **CST816**). → `.notes/touch-screen-not-working.md`.
+- **Light-sleep on idle** — Paul's word-clock repo shows the pattern
+  (`esp_light_sleep_start()` + GPIO0 wake, battery-gated). Our blocker is BLE:
+  can't halt or the link drops → need NimBLE modem-sleep. → `TODO.md`.
 
-## Awaiting from Paul
+## Resolved / learned
 
-- PEK short+long reliability on V2 (+ any INTEN/off-time specifics).
-- Whether/how CST816 touch works on his V2.
-- His light-sleep loop, if shareable.
+- VBUS-repower = off-method, not unit (software shutdown vs hardware long-press).
+- SHORT PEK reliable on V2; LONG unverified by Paul.
+- Touch chip varies on the "same" board (CST816 vs CST820); fix still open.

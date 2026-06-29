@@ -33,3 +33,14 @@ From the Waveshare Resources page's Community Showcase:
 - Audio Visualizer (spectrum): https://github.com/VolosR/spectrum24
 - Smartwatch UI (SquareLine): https://github.com/nishad2m8/Squareline-OBP
 - APP PIXELS: https://github.com/app-pixels
+
+## Peer build (same AMOLED-1.8 V2)
+
+- **Paul — ESP32-S3 AMOLED word clock:** https://gitlab.com/paulto/esp32-s3-amoled-word-clock
+  - Same board (V2). Reads PWR via the AXP **SHORT PEK IRQ** (INTEN2 bit3) for a
+    toggle; relies on the AXP hardware long-press for power-off.
+  - **Light-sleep reference:** `esp_light_sleep_start()` + GPIO0 (BOOT) wake,
+    battery-gated. No radio, so not BLE-aware — but the pattern + the
+    BOOT-ISR-detach-across-sleep trick are the parts to crib. See
+    [`peer-exchange.md`](peer-exchange.md).
+  - Note: his touch chip IDs as **CST820 (0xB7)**, not our CST816; core **3.3.5**.

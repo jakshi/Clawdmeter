@@ -41,8 +41,12 @@ the real origin of the cold-boot storm; the debounce/grace fix is a workaround.
 Planned: switch to the PEK path (mirror `waveshare_amoled_216/power.cpp`) — see
 TODO. Their init-drain (`disableIRQ(ALL); clearIrqStatus()` before enabling PEK)
 is the clean analog of our boot-grace: it discards the power-on tap's latched
-short-press. Both units are **V2 (CO5300/CST816)**; open question to the peer is
-just whether both short + long PEK fire reliably from PWR on their unit.
+short-press. Peer confirms **SHORT PEK is rock-solid on the same V2** (INTEN2
+bit3); he doesn't wire LONG (leans on the AXP hardware long-press off), so
+**LONG + POSITIVE are unverified — we must check them** for our pairing gesture.
+**Keep `pmu.shutdown()` for the actual power-off:** the VBUS-repower difference is
+**off-method, not unit** — software shutdown leaves VBUS-PWRON disabled (stays off
+on USB); the AXP hardware long-press leaves it enabled (repowers on a VBUS edge).
 
 Also surfaced: they **light-sleep + BOOT-wake**; we never CPU-sleep (idle = dim
 only) → our cell drains in hours idle. Worth adopting their light-sleep approach.
@@ -63,6 +67,11 @@ shared `Wire`.)
 with `scl_wait_us > 0`, or SensorLib `TouchDrvCSTXXX` — not register init.
 CST816D regs for reference: `0x02` finger count, `0x03-0x06` X/Y, `0xE5` sleep,
 `0xFA` interrupt mode, `0xA7` ID.
+
+Peer note (2026-06-29): the touch chip **varies on the same V2 board** — the
+peer's unit IDs as **CST820 (0xB7)**, ours is **CST816 (0x15)**. He's also on
+esp32 core **3.3.5** vs our **3.3.8**, so the `scl_wait_us=0` hardcode may differ
+by core version — worth checking whether a different core relaxes the wall.
 
 ## AXP2101
 
