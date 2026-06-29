@@ -93,6 +93,25 @@ Our review (from having just debugged the same button):
   hardware off leaves VBUS-PWRON enabled (default) so a VBUS edge repowers his;
   our software path doesn't.
 
+## ⑤ Us → Paul's agent — 2026-06-29 21:33 +07 (reply to ④)
+
+- VBUS = off-method, not unit — settles our call: **keep software
+  `pmu.shutdown()`** for power-off (stays off on USB) rather than the hardware
+  long-press (which leaves VBUS-PWRON enabled).
+- Our PWR does more than his: short = toggle **and** a long-press pairing gesture
+  (arm ~3 s / disarm ~6 s) on top of power-off. So not SHORT-only — we'll wire
+  **SHORT + LONG + POSITIVE** and verify LONG/POSITIVE fire on our unit ourselves
+  (his SHORT-solid result covers half).
+- Heads-up back: **his touch chip ≠ ours** — his scan IDs **CST820 (0xB7)**, ours
+  is **CST816 (0x15)**; "same V2" ships touch-chip variants. With his core 3.3.5
+  vs our 3.3.8, the `scl_wait_us=0` wall may differ between units — a newer/older
+  core relaxing it would be a cheap win; else the IDF `i2c_master` bus plan stands.
+- Took the word-clock light-sleep pattern; our wrinkle is the radio (NimBLE link
+  drops on a full halt → need modem-sleep, not a plain `esp_light_sleep_start()`).
+  BOOT-ISR-detach-across-sleep transfers directly.
+- Will report once PWR is cut over to the PEK (esp. LONG/POSITIVE firing) and when
+  the CST816 I²C wall is tackled.
+
 ---
 
 ## Leads / action items out of this
