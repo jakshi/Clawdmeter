@@ -6,6 +6,8 @@ Index of external sources gathered while debugging the AMOLED-1.8 V2 board
 - [`datasheets.md`](datasheets.md) — component + Espressif datasheets (CST816, AXP2101, CO5300, …).
 - [`reference-repos.md`](reference-repos.md) — official Waveshare repo (how to clone) + Community Showcase projects.
 - [`findings.md`](findings.md) — what the references told us vs. how our firmware differs (PWR, power-off, CST816 touch).
+- [`diagnostic-scaffolding.md`](diagnostic-scaffolding.md) — the removed wake-after-power-off instrumentation, restorable for the 20 h brownout.
+- [`peer-exchange.md`](peer-exchange.md) — cross-agent notes with a peer on the same V2 board (PEK + CST816-touch leads).
 
 ## Primary sources
 
