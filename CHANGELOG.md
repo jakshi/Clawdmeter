@@ -20,7 +20,9 @@ Changes in this fork (`jakshi/Clawdmeter`). Upstream: `HermannBjorgvin/Clawdmete
   **and on USB** — it does not auto-re-power from VBUS.
 - Added [`.notes/doc/`](.notes/doc/): Waveshare/Espressif datasheet + reference-repo
   links and findings (official firmware uses no software PWR button / no software
-  power-off; CST816 needs `0xFA`/`0xE5` init — candidate dead-touch fix).
+  power-off). The dead-touch root cause is the CST816 I2C clock-stretch /
+  `scl_wait_us` issue (see [`.notes/touch-screen-not-working.md`](.notes/touch-screen-not-working.md)),
+  not missing register init.
 
 ## 2026-06-28
 

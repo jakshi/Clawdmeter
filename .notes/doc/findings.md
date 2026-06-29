@@ -34,14 +34,20 @@ So PWR is wired to **both** PWRKEY (hardware on/off) and EXIO4 (firmware read).
 
 ## CST816 touch ("dead touch", separate issue)
 
-**Official:** initialises CST816 via `Arduino_DriveBus` (`CST816->begin()`), and
-the driver configures **interrupt-mode `0xFA`** and **sleep-mode `0xE5`**.
+**The root cause is NOT missing register init** — see
+[`../touch-screen-not-working.md`](../touch-screen-not-working.md). Every *data*
+I2C transaction to the CST816 fails `ESP_ERR_INVALID_STATE`: the chip
+clock-stretches and arduino-esp32 3.3.8's `Wire` (i2c-ng) hardcodes
+`scl_wait_us = 0` with no API to raise it. So register **writes themselves fail**
+— `0xFA`/`0xE5` can't even be applied — and `0xE5` auto-sleep ≈ the `0xFE`
+DisAutoSleep already tried with no effect. (The official firmware sidesteps this
+by talking to the CST816 through `Arduino_DriveBus`'s own IDF I2C path, not
+shared `Wire`.)
 
-**Ours:** custom inline reader (to avoid vendoring GPLv3 DriveBus) that
-**configures no CST816 registers** — just reads `0x02`..`0x06`. Candidate cause
-of the dead touch. CST816D register map (datasheet / DriveBus):
-`0x01` gesture, `0x02` finger count, `0x03-0x06` X/Y hi/lo, `0xE5` sleep,
-`0xFA` interrupt mode, `0xA7` chip ID. See `.notes/touch-screen-not-working.md`.
+**Fix direction (per the notes):** a dedicated IDF `i2c_master` bus on **port 1**
+with `scl_wait_us > 0`, or SensorLib `TouchDrvCSTXXX` — not register init.
+CST816D regs for reference: `0x02` finger count, `0x03-0x06` X/Y, `0xE5` sleep,
+`0xFA` interrupt mode, `0xA7` ID.
 
 ## AXP2101
 
