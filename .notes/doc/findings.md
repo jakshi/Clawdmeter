@@ -32,6 +32,21 @@ So PWR is wired to **both** PWRKEY (hardware on/off) and EXIO4 (firmware read).
   cold-boot cycles never browned out. The one rare 20 h-off brownout is still
   unexplained but is **not** a flat cell.
 
+### PWR read path: EXIO4 (ours) vs AXP PEK (better) — peer-confirmed (2026-06-29)
+
+Cross-checked with a peer running the **same** AMOLED-1.8: they read PWR via the
+**AXP2101 PEK IRQ** (hardware-debounced) and never hit a storm. That confirms the
+1.8's PWR drives the AXP PEK, so our **EXIO4 raw read is the inferior path** and
+the real origin of the cold-boot storm; the debounce/grace fix is a workaround.
+Planned: switch to the PEK path (mirror `waveshare_amoled_216/power.cpp`) — see
+TODO. Their init-drain (`disableIRQ(ALL); clearIrqStatus()` before enabling PEK)
+is the clean analog of our boot-grace: it discards the power-on tap's latched
+short-press. Open questions to the peer: panel rev, and whether both short + long
+PEK fire reliably from PWR on their unit.
+
+Also surfaced: they **light-sleep + BOOT-wake**; we never CPU-sleep (idle = dim
+only) → our cell drains in hours idle. Worth adopting their light-sleep approach.
+
 ## CST816 touch ("dead touch", separate issue)
 
 **The root cause is NOT missing register init** — see
