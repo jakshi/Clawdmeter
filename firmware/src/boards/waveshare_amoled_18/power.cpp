@@ -19,6 +19,10 @@
 #define CHARGING_POLL_MS 500
 #define PWR_POLL_MS      50
 #define PWR_LONG_MS      1500   // hold threshold, mirrors the AXP LONG IRQ
+// EXIO4 emits a burst of phantom edges in the first ~second after a cold
+// (AXP power-on) boot — it fired ~11 spurious short-presses, storming the
+// screen toggle. Ignore PWR events until the line settles past this window.
+#define PWR_BOOT_GRACE_MS 2000
 
 static XPowersPMU pmu;
 
@@ -28,7 +32,8 @@ static bool     cached_vbus       = false;
 static bool     pwr_pressed_flag  = false;
 static bool     pwr_long_flag     = false;
 static bool     pwr_released_flag = false;
-static bool     last_pwr_state    = false;   // edge detector for EXIO4
+static bool     last_pwr_state    = false;   // edge detector for EXIO4 (debounced level)
+static bool     pwr_seeded        = false;   // last_pwr_state seeded from the real pin yet?
 static uint32_t pwr_press_started_ms = 0;
 static bool     pwr_long_fired    = false;   // long already fired for this hold
 static uint32_t last_battery_ms   = 0;
@@ -65,10 +70,31 @@ void power_hal_tick(void) {
     }
     if (now - last_pwr_ms >= PWR_POLL_MS) {
         last_pwr_ms = now;
-        bool pwr_now = io_expander_get(IOX_PIN_PWR_BTN);
-        if (pwr_now && !last_pwr_state) {            // rising edge — hold begins
+
+        // Debounce: only treat a level as real once three consecutive samples
+        // (~150ms) agree. Kills the fast edge noise EXIO4 emits at boot.
+        bool raw = io_expander_get(IOX_PIN_PWR_BTN);
+        static bool    deb_prev  = false;
+        static uint8_t deb_run   = 0;
+        static bool    deb_level = false;
+        if (raw == deb_prev) { if (deb_run < 255) deb_run++; } else { deb_run = 0; }
+        deb_prev = raw;
+        if (deb_run >= 2) deb_level = raw;   // 3 samples in a row → confirmed level
+        bool pwr_now = deb_level;
+
+        if (!pwr_seeded) { last_pwr_state = pwr_now; pwr_seeded = true; }
+
+        if (now < PWR_BOOT_GRACE_MS) {
+            // Boot grace: follow the level but emit no edges, and drain any
+            // flags that slipped through — discards the cold-boot phantom storm.
+            last_pwr_state    = pwr_now;
+            pwr_pressed_flag  = false;
+            pwr_long_flag     = false;
+            pwr_released_flag = false;
+        } else if (pwr_now && !last_pwr_state) {     // rising edge — hold begins
             pwr_press_started_ms = now;
             pwr_long_fired = false;
+            last_pwr_state = pwr_now;
         } else if (pwr_now && last_pwr_state) {      // held
             if (!pwr_long_fired && (now - pwr_press_started_ms >= PWR_LONG_MS)) {
                 pwr_long_flag  = true;
@@ -77,8 +103,8 @@ void power_hal_tick(void) {
         } else if (!pwr_now && last_pwr_state) {     // falling edge — release
             pwr_released_flag = true;
             if (!pwr_long_fired) pwr_pressed_flag = true;  // short press
+            last_pwr_state = pwr_now;
         }
-        last_pwr_state = pwr_now;
     }
 }
 

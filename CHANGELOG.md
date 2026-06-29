@@ -2,6 +2,26 @@
 
 Changes in this fork (`jakshi/Clawdmeter`). Upstream: `HermannBjorgvin/Clawdmeter`.
 
+## 2026-06-29
+
+### Fixed
+- **AMOLED-1.8: spurious screen-toggle storm on wake from power-off.** A cold
+  (AXP power-on) boot let the EXIO4 PWR line emit ~11 phantom short-press edges
+  in the first ~0.5 s, rapidly flipping splash↔usage until it settled. Added a
+  debounce (3 consecutive samples) + boot-grace (ignore PWR for the first ~2 s)
+  + state seeding in `boards/waveshare_amoled_18/power.cpp`. Diagnosed with an
+  NVS flight-recorder + trigger counters, since removed — restore steps in
+  [`.notes/doc/diagnostic-scaffolding.md`](.notes/doc/diagnostic-scaffolding.md).
+
+### Notes
+- Correction to the 2026-06-28 power-off entry: the 1.8's PWR button is wired to
+  **both** EXIO4 (firmware-read) **and** the AXP PWRKEY (a tap wakes it from a
+  full shutdown with no USB). `pmu.shutdown()` powers off cleanly on battery
+  **and on USB** — it does not auto-re-power from VBUS.
+- Added [`.notes/doc/`](.notes/doc/): Waveshare/Espressif datasheet + reference-repo
+  links and findings (official firmware uses no software PWR button / no software
+  power-off; CST816 needs `0xFA`/`0xE5` init — candidate dead-touch fix).
+
 ## 2026-06-28
 
 ### Added
@@ -16,9 +36,10 @@ Changes in this fork (`jakshi/Clawdmeter`). Upstream: `HermannBjorgvin/Clawdmete
   `BoardCaps.primary_sends_shift_tab`; other boards keep Space.
 - **AMOLED-1.8: long-hold PWR (~6 s) powers the device off** via the new
   `power_hal_shutdown()` → AXP2101 `pmu.shutdown()`. Gated by
-  `BoardCaps.pwr_software_shutdown`. The 1.8's PWR button is on the IO
-  expander, not the AXP power key, so the PMU's own long-press shutdown never
-  fires. Effective on battery; on USB the VBUS re-powers.
+  `BoardCaps.pwr_software_shutdown`. The 1.8's PWR button is read via the IO
+  expander (EXIO4), so the firmware synthesizes the long-press. (Corrected
+  2026-06-29: PWR is *also* wired to the AXP PWRKEY, and `pmu.shutdown()` powers
+  off cleanly on battery **and** on USB — it does not auto-re-power from VBUS.)
 
 ## 2026-06-27
 
