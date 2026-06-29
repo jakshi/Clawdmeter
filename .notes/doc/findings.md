@@ -41,8 +41,8 @@ the real origin of the cold-boot storm; the debounce/grace fix is a workaround.
 Planned: switch to the PEK path (mirror `waveshare_amoled_216/power.cpp`) — see
 TODO. Their init-drain (`disableIRQ(ALL); clearIrqStatus()` before enabling PEK)
 is the clean analog of our boot-grace: it discards the power-on tap's latched
-short-press. Open questions to the peer: panel rev, and whether both short + long
-PEK fire reliably from PWR on their unit.
+short-press. Both units are **V2 (CO5300/CST816)**; open question to the peer is
+just whether both short + long PEK fire reliably from PWR on their unit.
 
 Also surfaced: they **light-sleep + BOOT-wake**; we never CPU-sleep (idle = dim
 only) → our cell drains in hours idle. Worth adopting their light-sleep approach.

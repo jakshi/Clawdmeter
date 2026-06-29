@@ -49,8 +49,9 @@ choice came from the now-corrected assumption "PWR isn't on the AXP power key."
   `getIrqStatus(); isPekeyShort/Long/PositiveIrq(); clearIrqStatus();`. CPU never
   sleeps here, so polling the PEK is fine.
 - **De-risk before cutover:** add the PEK read *alongside* the EXIO4 path on our
-  unit, log which fires for short + long; confirm both are reliable and note the
-  panel rev. Only then remove the EXIO4 read + the debounce/grace workaround.
+  unit, log which fires for short + long; confirm both are reliable. Only then
+  remove the EXIO4 read + the debounce/grace workaround. (Both units are V2:
+  CO5300 + CST816.)
 - **Related (separate):** we never light-sleep (idle just dims to brightness 0;
   ESP+BLE run 24/7 → cell drains in hours). The peer light-sleeps + BOOT-wakes —
   worth adopting for battery life. See `.notes/doc/findings.md` (idle-power).
